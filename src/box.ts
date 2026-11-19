@@ -192,6 +192,34 @@ export class Box {
     const end = this.start + this.size;
     return pos === end;
   }
+
+  /**
+   * Checks that a table-style box actually carries enough payload bytes for the
+   * number of entries it declares. A box's declared size bounds the bytes that
+   * legitimately belong to it: a declared count that would read past those bytes
+   * would otherwise spill into the neighboring box or past the buffer, and a
+   * count-driven allocation could grow memory far beyond the real data.
+   *
+   * The check is performed before any count-driven allocation so memory usage
+   * stays independent of the (untrusted) declared entry count. The comparison
+   * uses division rather than `entryCount * entrySize` to avoid 32-bit overflow.
+   *
+   * @param entryCount   number of entries declared in the box
+   * @param entrySize    size in bytes of one fixed-size entry
+   * @param fixedBytes   bytes of the box payload already consumed by fixed fields
+   * @returns            `ErrorCode.ERR_INVALID_DATA` if the count cannot fit, otherwise `ErrorCode.OK`
+   */
+  /** @bundle box-parse.js */
+  validateEntryCount(entryCount: number, entrySize: number, fixedBytes: number): ErrorCode {
+    const available = this.size - this.hdr_size - fixedBytes;
+    if (available < 0 || entrySize <= 0 || entryCount < 0) {
+      return ErrorCode.ERR_INVALID_DATA;
+    }
+    if (Math.floor(available / entrySize) < entryCount) {
+      return ErrorCode.ERR_INVALID_DATA;
+    }
+    return ErrorCode.OK;
+  }
 }
 
 export class FullBox extends Box {

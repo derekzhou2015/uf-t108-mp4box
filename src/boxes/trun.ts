@@ -1,6 +1,7 @@
 import { FullBox } from '#/box';
 import type { MultiBufferStream } from '#/buffer';
 import {
+  ErrorCode,
   TRUN_FLAGS_CTS_OFFSET,
   TRUN_FLAGS_DATA_OFFSET,
   TRUN_FLAGS_DURATION,
@@ -44,6 +45,18 @@ export class trunBox extends FullBox {
     this.sample_flags = [];
     this.sample_composition_time_offset = [];
     if (this.size - this.hdr_size > readBytes) {
+      let perSampleSize = 0;
+      if (this.flags & TRUN_FLAGS_DURATION) perSampleSize += 4;
+      if (this.flags & TRUN_FLAGS_SIZE) perSampleSize += 4;
+      if (this.flags & TRUN_FLAGS_FLAGS) perSampleSize += 4;
+      if (this.flags & TRUN_FLAGS_CTS_OFFSET) perSampleSize += 4;
+      if (
+        perSampleSize > 0 &&
+        this.validateEntryCount(this.sample_count, perSampleSize, readBytes) ===
+          ErrorCode.ERR_INVALID_DATA
+      ) {
+        return ErrorCode.ERR_INVALID_DATA;
+      }
       for (let i = 0; i < this.sample_count; i++) {
         if (this.flags & TRUN_FLAGS_DURATION) {
           this.sample_duration[i] = stream.readUint32();

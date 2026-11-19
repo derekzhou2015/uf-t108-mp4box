@@ -1,5 +1,6 @@
 import { FullBox } from '#/box';
 import type { MultiBufferStream } from '#/buffer';
+import { ErrorCode } from '#/constants';
 
 interface Entry {
   sample_count: number;
@@ -24,6 +25,11 @@ export class sbgpBox extends FullBox {
     }
     this.entries = [];
     const entry_count = stream.readUint32();
+    // fixed fields consumed before entries: grouping_type (4) + optional parameter (4) + entry_count (4)
+    const fixedBytes = 4 + (this.version === 1 ? 4 : 0) + 4;
+    if (this.validateEntryCount(entry_count, 8, fixedBytes) === ErrorCode.ERR_INVALID_DATA) {
+      return ErrorCode.ERR_INVALID_DATA;
+    }
     for (let i = 0; i < entry_count; i++) {
       this.entries.push({
         sample_count: stream.readInt32(),

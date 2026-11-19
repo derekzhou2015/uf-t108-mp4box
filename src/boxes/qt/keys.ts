@@ -1,5 +1,6 @@
 import { FullBox } from '#/box';
 import type { MultiBufferStream } from '#/buffer';
+import { ErrorCode } from '#/constants';
 
 /*
  * The QTFF keys Atom is typically in a meta Box.
@@ -17,6 +18,10 @@ export class keysBox extends FullBox {
   parse(stream: MultiBufferStream) {
     this.parseFullHeader(stream);
     this.count = stream.readUint32();
+    // count (4 bytes) consumed; each key starts with a 4-byte length field
+    if (this.validateEntryCount(this.count, 4, 4) === ErrorCode.ERR_INVALID_DATA) {
+      return ErrorCode.ERR_INVALID_DATA;
+    }
     this.keys = {};
     for (let i = 0; i < this.count; i++) {
       const len = stream.readUint32();

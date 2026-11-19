@@ -1,5 +1,6 @@
 import { FullBox } from '#/box';
 import type { MultiBufferStream } from '#/buffer';
+import { ErrorCode } from '#/constants';
 import type { SubSample } from '@types';
 
 interface SampleInfo {
@@ -17,6 +18,11 @@ export class subsBox extends FullBox {
   parse(stream: MultiBufferStream) {
     this.parseFullHeader(stream);
     const entry_count = stream.readUint32();
+    // Each outer entry starts with sample_delta (4) + subsample_count (2) = 6 fixed bytes
+    // before its variable-length subsamples; validate against that minimum footprint.
+    if (this.validateEntryCount(entry_count, 6, 4) === ErrorCode.ERR_INVALID_DATA) {
+      return ErrorCode.ERR_INVALID_DATA;
+    }
     this.entries = [];
     let subsample_count;
     for (let i = 0; i < entry_count; i++) {

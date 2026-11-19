@@ -1,5 +1,6 @@
 import { FullBox } from '#/box';
 import type { MultiBufferStream } from '#/buffer';
+import { ErrorCode } from '#/constants';
 
 class TfraEntry {
   time: number;
@@ -29,6 +30,17 @@ export class tfraBox extends FullBox {
     this.length_size_of_sample_num = tmp_byte & 0x3;
     this.entries = [];
     const number_of_entries = stream.readUint32();
+    // fixed fields before entries: track_ID (4) + reserved (3) + sizes byte (1) + entry count (4) = 12
+    const timeAndOffsetSize = this.version === 1 ? 16 : 8;
+    const variableSize =
+      this.length_size_of_traf_num +
+      1 +
+      (this.length_size_of_trun_num + 1) +
+      (this.length_size_of_sample_num + 1);
+    const entrySize = timeAndOffsetSize + variableSize;
+    if (this.validateEntryCount(number_of_entries, entrySize, 12) === ErrorCode.ERR_INVALID_DATA) {
+      return ErrorCode.ERR_INVALID_DATA;
+    }
     for (let i = 0; i < number_of_entries; i++) {
       const entry = new TfraEntry();
       if (this.version === 1) {

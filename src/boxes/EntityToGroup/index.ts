@@ -1,4 +1,5 @@
 import type { MultiBufferStream } from '#/buffer';
+import { ErrorCode } from '#/constants';
 import { EntityToGroup } from './base';
 
 // Auto exposure bracketing (ISO/IEC 23008-12:2022 Section 6.8.6.2.1)
@@ -120,6 +121,12 @@ export class pymdBox extends EntityToGroup {
 
     this.tile_size_x = stream.readUint16();
     this.tile_size_y = stream.readUint16();
+    // The second loop reads three uint16 values per entity (6 bytes each), which is
+    // larger than the entity_id loop; validate against the full box payload here.
+    // fixed bytes: group_id (4) + count (4) + tile sizes (4) = 12
+    if (this.validateEntryCount(this.num_entities_in_group, 6, 12) === ErrorCode.ERR_INVALID_DATA) {
+      return ErrorCode.ERR_INVALID_DATA;
+    }
     this.layer_binning = [];
     this.tiles_in_layer_column_minus1 = [];
     this.tiles_in_layer_row_minus1 = [];

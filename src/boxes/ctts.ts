@@ -1,5 +1,6 @@
 import { FullBox } from '#/box';
 import type { MultiBufferStream } from '#/buffer';
+import { ErrorCode } from '#/constants';
 import { Log } from '#/log';
 import type { Sample } from '@types';
 
@@ -15,6 +16,12 @@ export class cttsBox extends FullBox {
     const entry_count = stream.readUint32();
     this.sample_counts = [];
     this.sample_offsets = [];
+    if (this.version === 0 || this.version === 1) {
+      // 4 bytes for entry_count, each entry is a uint32 count + int32 offset (8 bytes)
+      if (this.validateEntryCount(entry_count, 8, 4) === ErrorCode.ERR_INVALID_DATA) {
+        return ErrorCode.ERR_INVALID_DATA;
+      }
+    }
     if (this.version === 0) {
       for (let i = 0; i < entry_count; i++) {
         this.sample_counts.push(stream.readUint32());

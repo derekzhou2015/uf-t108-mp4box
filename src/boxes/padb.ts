@@ -1,5 +1,6 @@
 import { FullBox } from '#/box';
 import type { MultiBufferStream } from '#/buffer';
+import { ErrorCode } from '#/constants';
 
 class PaddingBit {
   constructor(
@@ -17,8 +18,13 @@ export class padbBox extends FullBox {
   parse(stream: MultiBufferStream) {
     this.parseFullHeader(stream);
     const sample_count = stream.readUint32();
+    // two samples are packed per byte; 4 bytes already consumed by sample_count
+    const byte_count = Math.floor((sample_count + 1) / 2);
+    if (this.validateEntryCount(byte_count, 1, 4) === ErrorCode.ERR_INVALID_DATA) {
+      return ErrorCode.ERR_INVALID_DATA;
+    }
     this.padbits = [];
-    for (let i = 0; i < Math.floor((sample_count + 1) / 2); i++) {
+    for (let i = 0; i < byte_count; i++) {
       const bits = stream.readUint8();
       const pad1 = (bits & 0x70) >> 4; // 5,6,7 bits
       const pad2 = bits & 0x07; // 0,1,2 bits

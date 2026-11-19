@@ -1,5 +1,6 @@
 import { FullBox } from '#/box';
 import type { MultiBufferStream } from '#/buffer';
+import { ErrorCode } from '#/constants';
 
 export class stszBox extends FullBox {
   static override readonly fourcc = 'stsz' as const;
@@ -15,6 +16,14 @@ export class stszBox extends FullBox {
     if (this.version === 0) {
       this.sample_size = stream.readUint32();
       this.sample_count = stream.readUint32();
+      // Only a variable-size box (sample_size === 0) actually reads one uint32 per
+      // sample; a constant size carries no per-sample data and cannot over-read.
+      if (
+        this.sample_size === 0 &&
+        this.validateEntryCount(this.sample_count, 4, 8) === ErrorCode.ERR_INVALID_DATA
+      ) {
+        return ErrorCode.ERR_INVALID_DATA;
+      }
       for (let i = 0; i < this.sample_count; i++) {
         if (this.sample_size === 0) {
           this.sample_sizes.push(stream.readUint32());

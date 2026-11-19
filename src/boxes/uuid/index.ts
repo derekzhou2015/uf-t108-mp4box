@@ -1,6 +1,7 @@
 import { Box, FullBox } from '#/box';
 import type { MultiBufferStream } from '#/buffer';
 import { parseHex16 } from '#/parser';
+import { ErrorCode } from '#/constants';
 
 class UUIDBox extends Box {
   static override readonly fourcc = 'uuid' as const;
@@ -75,10 +76,15 @@ export class piffTfrfBox extends UUIDFullBox {
   fragment_count: number;
   entries: Array<{ absolute_time: number; absolute_duration: number }>;
 
-  parse(stream: MultiBufferStream): void {
+  parse(stream: MultiBufferStream): ErrorCode | ReturnType<() => void> {
     this.parseFullHeader(stream);
     this.fragment_count = stream.readUint8();
     this.entries = [];
+    // only the fragment_count byte (1) is consumed before the entries
+    const entrySize = this.version === 1 ? 16 : 8;
+    if (this.validateEntryCount(this.fragment_count, entrySize, 1) === ErrorCode.ERR_INVALID_DATA) {
+      return ErrorCode.ERR_INVALID_DATA;
+    }
 
     for (let i = 0; i < this.fragment_count; i++) {
       let absolute_time: number;

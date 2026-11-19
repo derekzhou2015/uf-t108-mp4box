@@ -1,6 +1,6 @@
 import { FullBox } from '#/box';
 import type { MultiBufferStream } from '#/buffer';
-import { MAX_UINT32 } from '#/constants';
+import { ErrorCode, MAX_UINT32 } from '#/constants';
 
 interface Reference {
   reference_type: number;
@@ -39,6 +39,11 @@ export class sidxBox extends FullBox {
     this.references = [];
 
     const count = stream.readUint16();
+    // fixed fields: reference_ID + timescale (8) + two time/offset fields (8 or 16) + reserved (2) + count (2)
+    const fixedBytes = 8 + (this.version === 0 ? 8 : 16) + 4;
+    if (this.validateEntryCount(count, 12, fixedBytes) === ErrorCode.ERR_INVALID_DATA) {
+      return ErrorCode.ERR_INVALID_DATA;
+    }
 
     for (let i = 0; i < count; i++) {
       const type = stream.readUint32();

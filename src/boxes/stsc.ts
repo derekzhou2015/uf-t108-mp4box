@@ -1,5 +1,6 @@
 import { FullBox } from '#/box';
 import type { MultiBufferStream } from '#/buffer';
+import { ErrorCode } from '#/constants';
 import type { Sample } from '@types';
 
 export class stscBox extends FullBox {
@@ -17,6 +18,10 @@ export class stscBox extends FullBox {
     this.samples_per_chunk = [];
     this.sample_description_index = [];
     if (this.version === 0) {
+      // 4 bytes for entry_count, each entry is three uint32 fields (12 bytes)
+      if (this.validateEntryCount(entry_count, 12, 4) === ErrorCode.ERR_INVALID_DATA) {
+        return ErrorCode.ERR_INVALID_DATA;
+      }
       for (let i = 0; i < entry_count; i++) {
         this.first_chunk.push(stream.readUint32());
         this.samples_per_chunk.push(stream.readUint32());

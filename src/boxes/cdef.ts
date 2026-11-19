@@ -1,5 +1,6 @@
 import { Box } from '#/box';
 import type { MultiBufferStream } from '#/buffer';
+import { ErrorCode } from '#/constants';
 
 export class cdefBox extends Box {
   static override readonly fourcc = 'cdef' as const;
@@ -12,6 +13,10 @@ export class cdefBox extends Box {
 
   parse(stream: MultiBufferStream) {
     this.channel_count = stream.readUint16();
+    // channel_count (2 bytes) consumed; each entry is three uint16 fields (6 bytes)
+    if (this.validateEntryCount(this.channel_count, 6, 2) === ErrorCode.ERR_INVALID_DATA) {
+      return ErrorCode.ERR_INVALID_DATA;
+    }
     this.channel_indexes = [];
     this.channel_types = [];
     this.channel_associations = [];

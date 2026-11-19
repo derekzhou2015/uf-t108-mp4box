@@ -1,6 +1,7 @@
 import { FullBox } from '#/box';
 import { parseHex16 } from '#/parser';
 import type { MultiBufferStream } from '#/buffer';
+import { ErrorCode } from '#/constants';
 
 export class psshBox extends FullBox {
   static override readonly fourcc = 'pssh' as const;
@@ -17,6 +18,10 @@ export class psshBox extends FullBox {
     this.kid = [];
     if (this.version > 0) {
       const count = stream.readUint32();
+      // system_id (16 bytes) + KID count (4 bytes) already consumed; each KID is 16 bytes
+      if (this.validateEntryCount(count, 16, 20) === ErrorCode.ERR_INVALID_DATA) {
+        return ErrorCode.ERR_INVALID_DATA;
+      }
       for (let i = 0; i < count; i++) {
         this.kid[i] = parseHex16(stream);
       }

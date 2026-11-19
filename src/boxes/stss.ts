@@ -1,5 +1,6 @@
 import { FullBox } from '#/box';
 import type { MultiBufferStream } from '#/buffer';
+import { ErrorCode } from '#/constants';
 
 export class stssBox extends FullBox {
   static override readonly fourcc = 'stss' as const;
@@ -11,6 +12,10 @@ export class stssBox extends FullBox {
     this.parseFullHeader(stream);
     const entry_count = stream.readUint32();
     if (this.version === 0) {
+      // 4 bytes for entry_count, each entry is a uint32 sample number (4 bytes)
+      if (this.validateEntryCount(entry_count, 4, 4) === ErrorCode.ERR_INVALID_DATA) {
+        return ErrorCode.ERR_INVALID_DATA;
+      }
       this.sample_numbers = [];
       for (let i = 0; i < entry_count; i++) {
         this.sample_numbers.push(stream.readUint32());

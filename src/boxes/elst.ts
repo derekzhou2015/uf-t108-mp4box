@@ -1,7 +1,7 @@
 import { FullBox } from '#/box';
 import type { MultiBufferStream } from '#/buffer';
 import type { Entry } from '@types';
-import { MAX_UINT32 } from '#/constants';
+import { ErrorCode, MAX_UINT32 } from '#/constants';
 
 export class elstBox extends FullBox {
   static override readonly fourcc = 'elst' as const;
@@ -13,6 +13,12 @@ export class elstBox extends FullBox {
     this.parseFullHeader(stream);
     this.entries = [];
     const entry_count = stream.readUint32();
+    // version 0: duration(4) + media_time(4) + rate(2+2) = 12 bytes per entry
+    // version 1: duration(8) + media_time(8) + rate(2+2) = 20 bytes per entry
+    const entrySize = this.version === 1 ? 20 : 12;
+    if (this.validateEntryCount(entry_count, entrySize, 4) === ErrorCode.ERR_INVALID_DATA) {
+      return ErrorCode.ERR_INVALID_DATA;
+    }
     for (let i = 0; i < entry_count; i++) {
       const entry: Entry = {
         segment_duration: this.version === 1 ? stream.readUint64() : stream.readUint32(),

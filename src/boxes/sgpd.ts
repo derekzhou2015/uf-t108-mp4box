@@ -1,6 +1,7 @@
 import { FullBox, SampleGroupEntry } from '#/box';
 import type { MultiBufferStream } from '#/buffer';
 // import * as BOXES from '#/codecs-all';
+import { ErrorCode } from '#/constants';
 import { Log } from '#/log';
 import { BoxRegistry } from '#/registry';
 
@@ -48,6 +49,17 @@ export class sgpdBox extends FullBox {
     }
     this.entries = [];
     const entry_count = stream.readUint32();
+    // In version 1 with no default length, every entry carries at least its own
+    // 4-byte description_length field, so the count is bounded by the box payload.
+    // Other paths are data-length driven (and may legitimately use zero-length
+    // entries), so they keep their original data-driven behavior.
+    if (this.version === 1 && this.default_length === 0) {
+      // grouping_type (4) + default_length (4) + entry_count (4)
+      const fixedBytes = 12;
+      if (this.validateEntryCount(entry_count, 4, fixedBytes) === ErrorCode.ERR_INVALID_DATA) {
+        return ErrorCode.ERR_INVALID_DATA;
+      }
+    }
     for (let i = 0; i < entry_count; i++) {
       let entry: SampleGroupEntry;
       if (this.grouping_type in BoxRegistry.sampleGroupEntry) {
