@@ -1,6 +1,7 @@
 import { Log } from '#//log';
 import { FullBox } from '#/box';
 import type { MultiBufferStream } from '#/buffer';
+import { checkEntryCountFits } from '#/boxes/entry-count';
 
 interface Level {
   padding_flag: number;
@@ -21,6 +22,9 @@ export class levaBox extends FullBox {
     this.parseFullHeader(stream);
     const count = stream.readUint8();
     this.levels = [];
+    // every level carries at least track_ID (4) and the assignment-type byte (1)
+    const invalid = checkEntryCountFits(this, stream, count, 5, 'level assignments');
+    if (invalid) return invalid;
     for (let i = 0; i < count; i++) {
       const level = {} as Level;
       this.levels[i] = level;

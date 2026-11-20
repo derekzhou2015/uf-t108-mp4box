@@ -1,5 +1,6 @@
 import { FullBox } from '#/box';
 import type { MultiBufferStream } from '#/buffer';
+import { checkEntryCountFits } from '#/boxes/entry-count';
 
 /*
  * The QTFF keys Atom is typically in a meta Box.
@@ -18,6 +19,9 @@ export class keysBox extends FullBox {
     this.parseFullHeader(stream);
     this.count = stream.readUint32();
     this.keys = {};
+    // each key entry starts with a 4-byte length field
+    const invalid = checkEntryCountFits(this, stream, this.count, 4, 'metadata keys');
+    if (invalid) return invalid;
     for (let i = 0; i < this.count; i++) {
       const len = stream.readUint32();
       this.keys[i + 1] = stream.readString(len - 4);

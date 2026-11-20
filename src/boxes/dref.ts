@@ -2,6 +2,7 @@ import { Box, FullBox } from '#/box';
 import type { MultiBufferStream } from '#/buffer';
 import { ErrorCode } from '#/constants';
 import { Log } from '#/log';
+import { checkEntryCountFits } from '#/boxes/entry-count';
 import { parseOneBox } from '#/parser';
 
 export class drefBox extends FullBox {
@@ -14,11 +15,16 @@ export class drefBox extends FullBox {
     this.parseFullHeader(stream);
     this.entries = [];
     const entry_count = stream.readUint32();
+    // every entry is itself a box and therefore occupies at least an 8-byte box header
+    const invalid = checkEntryCountFits(this, stream, entry_count, 8, 'data-reference entries');
+    if (invalid) return invalid;
     for (let i = 0; i < entry_count; i++) {
       const ret = parseOneBox(stream, false, this.size - (stream.getPosition() - this.start));
       if (ret.code === ErrorCode.OK) {
         const box = ret.box;
         this.entries.push(box);
+      } else if (ret.code === ErrorCode.ERR_INVALID_DATA) {
+        return ErrorCode.ERR_INVALID_DATA;
       } else {
         return;
       }

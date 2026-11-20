@@ -1,5 +1,6 @@
 import { FullBox } from '#/box';
 import type { MultiBufferStream } from '#/buffer';
+import { checkEntryCountFits } from '#/boxes/entry-count';
 
 export class co64Box extends FullBox {
   static override readonly fourcc = 'co64' as const;
@@ -12,6 +13,14 @@ export class co64Box extends FullBox {
     const entry_count = stream.readUint32();
     this.chunk_offsets = [];
     if (this.version === 0) {
+      const invalid = checkEntryCountFits(
+        this,
+        stream,
+        entry_count,
+        8,
+        'large-chunk-offset entries',
+      );
+      if (invalid) return invalid;
       for (let i = 0; i < entry_count; i++) {
         this.chunk_offsets.push(stream.readUint64());
       }

@@ -1,5 +1,6 @@
 import { FullBox } from '#/box';
 import type { MultiBufferStream } from '#/buffer';
+import { checkEntryCountFits } from '#/boxes/entry-count';
 import type { SubSample } from '@types';
 
 interface SampleInfo {
@@ -17,6 +18,9 @@ export class subsBox extends FullBox {
   parse(stream: MultiBufferStream) {
     this.parseFullHeader(stream);
     const entry_count = stream.readUint32();
+    // every sample entry carries at least sample_delta (4) + subsample_count (2)
+    const invalid = checkEntryCountFits(this, stream, entry_count, 6, 'sub-sample entries');
+    if (invalid) return invalid;
     this.entries = [];
     let subsample_count;
     for (let i = 0; i < entry_count; i++) {
@@ -26,6 +30,14 @@ export class subsBox extends FullBox {
       sampleInfo.subsamples = [];
       subsample_count = stream.readUint16();
       if (subsample_count > 0) {
+        const subInvalid = checkEntryCountFits(
+          this,
+          stream,
+          subsample_count,
+          this.version === 1 ? 10 : 8,
+          'sub-samples',
+        );
+        if (subInvalid) return subInvalid;
         for (let j = 0; j < subsample_count; j++) {
           const subsample = {} as SubSample;
           sampleInfo.subsamples.push(subsample);

@@ -3,6 +3,7 @@ import { infeBox } from '#/boxes/infe';
 import type { MultiBufferStream } from '#/buffer';
 import { ErrorCode } from '#/constants';
 import { Log } from '#/log';
+import { checkEntryCountFits } from '#/boxes/entry-count';
 import { parseOneBox } from '#/parser';
 import type { BoxKind } from '@types';
 
@@ -24,6 +25,15 @@ export class iinfBox extends FullBox {
 
     this.item_infos = [];
 
+    // every entry is an 'infe' box and therefore occupies at least an 8-byte box header
+    const invalid = checkEntryCountFits(
+      this,
+      stream,
+      this.entry_count,
+      8,
+      'item-information entries',
+    );
+    if (invalid) return invalid;
     for (let i = 0; i < this.entry_count; i++) {
       const ret = parseOneBox(stream, false, this.size - (stream.getPosition() - this.start));
       if (ret.code === ErrorCode.OK) {
@@ -33,6 +43,8 @@ export class iinfBox extends FullBox {
         } else {
           Log.error('BoxParser', "Expected 'infe' box, got " + ret.box.type, stream.isofile);
         }
+      } else if (ret.code === ErrorCode.ERR_INVALID_DATA) {
+        return ErrorCode.ERR_INVALID_DATA;
       } else {
         return;
       }

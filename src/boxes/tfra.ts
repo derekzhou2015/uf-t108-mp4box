@@ -1,5 +1,6 @@
 import { FullBox } from '#/box';
 import type { MultiBufferStream } from '#/buffer';
+import { checkEntryCountFits } from '#/boxes/entry-count';
 
 class TfraEntry {
   time: number;
@@ -29,6 +30,19 @@ export class tfraBox extends FullBox {
     this.length_size_of_sample_num = tmp_byte & 0x3;
     this.entries = [];
     const number_of_entries = stream.readUint32();
+    const entrySize =
+      (this.version === 1 ? 16 : 8) +
+      (this.length_size_of_traf_num + 1) +
+      (this.length_size_of_trun_num + 1) +
+      (this.length_size_of_sample_num + 1);
+    const invalid = checkEntryCountFits(
+      this,
+      stream,
+      number_of_entries,
+      entrySize,
+      'random-access entries',
+    );
+    if (invalid) return invalid;
     for (let i = 0; i < number_of_entries; i++) {
       const entry = new TfraEntry();
       if (this.version === 1) {

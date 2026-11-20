@@ -1,6 +1,7 @@
 import { FullBox } from '#/box';
 import type { MultiBufferStream } from '#/buffer';
 import { Log } from '#/log';
+import { checkEntryCountFits } from '#/boxes/entry-count';
 import type { Sample } from '@types';
 
 export class cttsBox extends FullBox {
@@ -16,6 +17,14 @@ export class cttsBox extends FullBox {
     this.sample_counts = [];
     this.sample_offsets = [];
     if (this.version === 0) {
+      const invalid = checkEntryCountFits(
+        this,
+        stream,
+        entry_count,
+        8,
+        'composition-offset entries',
+      );
+      if (invalid) return invalid;
       for (let i = 0; i < entry_count; i++) {
         this.sample_counts.push(stream.readUint32());
         /* some files are buggy and declare version=0 while using signed offsets.
@@ -28,6 +37,14 @@ export class cttsBox extends FullBox {
         this.sample_offsets.push(value);
       }
     } else if (this.version === 1) {
+      const invalid = checkEntryCountFits(
+        this,
+        stream,
+        entry_count,
+        8,
+        'composition-offset entries',
+      );
+      if (invalid) return invalid;
       for (let i = 0; i < entry_count; i++) {
         this.sample_counts.push(stream.readUint32());
         this.sample_offsets.push(stream.readInt32()); /* signed */

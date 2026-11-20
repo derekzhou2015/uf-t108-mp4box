@@ -1,5 +1,6 @@
 import { FullBox } from '#/box';
 import type { MultiBufferStream } from '#/buffer';
+import { checkEntryCountFits } from '#/boxes/entry-count';
 
 export interface Extent {
   extent_index: number;
@@ -46,6 +47,22 @@ export class ilocBox extends FullBox {
     } else {
       throw new Error('version of iloc box not supported');
     }
+    // minimum bytes per item: item_ID + (construction method in v1/v2) + data_reference_index
+    // + base_offset + extent_count
+    const minItemSize =
+      (this.version < 2 ? 2 : 4) +
+      (this.version === 1 || this.version === 2 ? 2 : 0) +
+      2 +
+      this.base_offset_size +
+      2;
+    const invalid = checkEntryCountFits(
+      this,
+      stream,
+      item_count,
+      minItemSize,
+      'item-location entries',
+    );
+    if (invalid) return invalid;
     for (let i = 0; i < item_count; i++) {
       let item_ID: number;
       let construction_method: number;
@@ -81,6 +98,16 @@ export class ilocBox extends FullBox {
 
       const extents: Array<Extent> = [];
       const extent_count = stream.readUint16();
+
+      const extentSize = this.index_size + this.offset_size + this.length_size;
+      const extentInvalid = checkEntryCountFits(
+        this,
+        stream,
+        extent_count,
+        extentSize,
+        'item extents',
+      );
+      if (extentInvalid) return extentInvalid;
 
       for (let j = 0; j < extent_count; j++) {
         let extent_index = 0;

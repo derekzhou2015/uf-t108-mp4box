@@ -1,5 +1,6 @@
 import { Box } from '#/box';
 import type { MultiBufferStream } from '#/buffer';
+import { checkEntryCountFits } from '#/boxes/entry-count';
 
 export class cmpdBox extends Box {
   static override readonly fourcc = 'cmpd' as const;
@@ -13,6 +14,9 @@ export class cmpdBox extends Box {
     this.component_count = stream.readUint32();
     this.component_types = [];
     this.component_type_urls = [];
+    // every component carries at least its 2-byte component type
+    const invalid = checkEntryCountFits(this, stream, this.component_count, 2, 'component entries');
+    if (invalid) return invalid;
     for (let i = 0; i < this.component_count; i++) {
       const component_type = stream.readUint16();
       this.component_types.push(component_type);

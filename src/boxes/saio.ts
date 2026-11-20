@@ -1,5 +1,6 @@
 import { FullBox } from '#/box';
 import type { MultiBufferStream } from '#/buffer';
+import { checkEntryCountFits } from '#/boxes/entry-count';
 
 export class saioBox extends FullBox {
   static override readonly fourcc = 'saio' as const;
@@ -18,6 +19,14 @@ export class saioBox extends FullBox {
     }
     this.entry_count = stream.readUint32();
     this.offset = [];
+    const invalid = checkEntryCountFits(
+      this,
+      stream,
+      this.entry_count,
+      this.version === 0 ? 4 : 8,
+      'sample-auxiliary-offset entries',
+    );
+    if (invalid) return invalid;
     for (let i = 0; i < this.entry_count; i++) {
       if (this.version === 0) {
         this.offset[i] = stream.readUint32();

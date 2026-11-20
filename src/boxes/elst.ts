@@ -2,6 +2,7 @@ import { FullBox } from '#/box';
 import type { MultiBufferStream } from '#/buffer';
 import type { Entry } from '@types';
 import { MAX_UINT32 } from '#/constants';
+import { checkEntryCountFits } from '#/boxes/entry-count';
 
 export class elstBox extends FullBox {
   static override readonly fourcc = 'elst' as const;
@@ -13,6 +14,14 @@ export class elstBox extends FullBox {
     this.parseFullHeader(stream);
     this.entries = [];
     const entry_count = stream.readUint32();
+    const invalid = checkEntryCountFits(
+      this,
+      stream,
+      entry_count,
+      this.version === 1 ? 20 : 12,
+      'edit-list entries',
+    );
+    if (invalid) return invalid;
     for (let i = 0; i < entry_count; i++) {
       const entry: Entry = {
         segment_duration: this.version === 1 ? stream.readUint64() : stream.readUint32(),

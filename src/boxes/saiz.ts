@@ -1,5 +1,6 @@
 import { FullBox } from '#/box';
 import type { MultiBufferStream } from '#/buffer';
+import { checkEntryCountFits } from '#/boxes/entry-count';
 
 export class saizBox extends FullBox {
   static override readonly fourcc = 'saiz' as const;
@@ -21,6 +22,14 @@ export class saizBox extends FullBox {
     this.sample_count = stream.readUint32();
     this.sample_info_size = [];
     if (this.default_sample_info_size === 0) {
+      const invalid = checkEntryCountFits(
+        this,
+        stream,
+        this.sample_count,
+        1,
+        'sample-auxiliary-size entries',
+      );
+      if (invalid) return invalid;
       for (let i = 0; i < this.sample_count; i++) {
         this.sample_info_size[i] = stream.readUint8();
       }

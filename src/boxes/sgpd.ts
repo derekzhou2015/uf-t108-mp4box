@@ -3,6 +3,7 @@ import type { MultiBufferStream } from '#/buffer';
 // import * as BOXES from '#/codecs-all';
 import { Log } from '#/log';
 import { BoxRegistry } from '#/registry';
+import { checkEntryCountFits } from '#/boxes/entry-count';
 
 export class sgpdBox extends FullBox {
   static override readonly fourcc = 'sgpd' as const;
@@ -48,6 +49,16 @@ export class sgpdBox extends FullBox {
     }
     this.entries = [];
     const entry_count = stream.readUint32();
+    // version 1 with variable lengths carries a 4-byte length field per description
+    const minEntrySize = this.version === 1 && this.default_length === 0 ? 4 : 0;
+    const invalid = checkEntryCountFits(
+      this,
+      stream,
+      entry_count,
+      minEntrySize,
+      'group descriptions',
+    );
+    if (invalid) return invalid;
     for (let i = 0; i < entry_count; i++) {
       let entry: SampleGroupEntry;
       if (this.grouping_type in BoxRegistry.sampleGroupEntry) {

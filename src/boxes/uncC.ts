@@ -1,5 +1,6 @@
 import { FullBox } from '#/box';
 import type { MultiBufferStream } from '#/buffer';
+import { checkEntryCountFits } from '#/boxes/entry-count';
 
 export class uncCBox extends FullBox {
   static override readonly fourcc = 'uncC' as const;
@@ -36,6 +37,14 @@ export class uncCBox extends FullBox {
       this.component_bit_depth_minus_one = [];
       this.component_format = [];
       this.component_align_size = [];
+      const invalid = checkEntryCountFits(
+        this,
+        stream,
+        this.component_count,
+        5,
+        'component entries',
+      );
+      if (invalid) return invalid;
       for (let i = 0; i < this.component_count; i++) {
         this.component_index.push(stream.readUint16());
         this.component_bit_depth_minus_one.push(stream.readUint8());

@@ -1,5 +1,6 @@
 import { FullBox } from '#/box';
 import type { MultiBufferStream } from '#/buffer';
+import { checkEntryCountFits } from '#/boxes/entry-count';
 import { Pixel } from './displays/pixel';
 
 export class sbpmBox extends FullBox {
@@ -20,6 +21,8 @@ export class sbpmBox extends FullBox {
     this.parseFullHeader(stream);
     this.component_count = stream.readUint16();
     this.component_index = [];
+    let invalid = checkEntryCountFits(this, stream, this.component_count, 2, 'component indexes');
+    if (invalid) return invalid;
     for (let i = 0; i < this.component_count; i++) {
       this.component_index.push(stream.readUint16());
     }
@@ -31,12 +34,18 @@ export class sbpmBox extends FullBox {
     this.bad_rows = [];
     this.bad_columns = [];
     this.bad_pixels = [];
+    invalid = checkEntryCountFits(this, stream, this.num_bad_rows, 4, 'bad rows');
+    if (invalid) return invalid;
     for (let i = 0; i < this.num_bad_rows; i++) {
       this.bad_rows.push(stream.readUint32());
     }
+    invalid = checkEntryCountFits(this, stream, this.num_bad_cols, 4, 'bad columns');
+    if (invalid) return invalid;
     for (let i = 0; i < this.num_bad_cols; i++) {
       this.bad_columns.push(stream.readUint32());
     }
+    invalid = checkEntryCountFits(this, stream, this.num_bad_pixels, 8, 'bad pixels');
+    if (invalid) return invalid;
     for (let i = 0; i < this.num_bad_pixels; i++) {
       const row = stream.readUint32();
       const col = stream.readUint32();

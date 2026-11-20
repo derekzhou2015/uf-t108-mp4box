@@ -1,5 +1,6 @@
 import { Box } from '#/box';
 import type { MultiBufferStream } from '#/buffer';
+import { checkEntryCountFits } from '#/boxes/entry-count';
 
 export class cdefBox extends Box {
   static override readonly fourcc = 'cdef' as const;
@@ -15,6 +16,8 @@ export class cdefBox extends Box {
     this.channel_indexes = [];
     this.channel_types = [];
     this.channel_associations = [];
+    const invalid = checkEntryCountFits(this, stream, this.channel_count, 6, 'channel definitions');
+    if (invalid) return invalid;
     for (let i = 0; i < this.channel_count; i++) {
       this.channel_indexes.push(stream.readUint16());
       this.channel_types.push(stream.readUint16());

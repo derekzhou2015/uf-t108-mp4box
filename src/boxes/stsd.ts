@@ -3,6 +3,7 @@ import type { MultiBufferStream } from '#/buffer';
 import { ErrorCode } from '#/constants';
 import { Log } from '#/log';
 import { BoxRegistry } from '#/registry';
+import { checkEntryCountFits } from '#/boxes/entry-count';
 import type { BoxFourCC } from '@types';
 import { SampleEntry } from './sampleentries/base';
 import { parseOneBox } from '#/parser';
@@ -18,6 +19,10 @@ export class stsdBox extends FullBox {
     this.entries = [];
 
     const entryCount = stream.readUint32();
+
+    // every entry is a sample-entry box and therefore occupies at least an 8-byte box header
+    const invalid = checkEntryCountFits(this, stream, entryCount, 8, 'sample-description entries');
+    if (invalid) return invalid;
 
     for (let i = 1; i <= entryCount; i++) {
       const ret = parseOneBox(stream, true, this.size - (stream.getPosition() - this.start));
@@ -46,6 +51,8 @@ export class stsdBox extends FullBox {
 
         box.parse(stream);
         this.entries.push(box);
+      } else if (ret.code === ErrorCode.ERR_INVALID_DATA) {
+        return ErrorCode.ERR_INVALID_DATA;
       } else {
         return;
       }

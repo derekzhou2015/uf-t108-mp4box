@@ -1,5 +1,7 @@
 import { FullBox } from '#/box';
 import type { MultiBufferStream } from '#/buffer';
+import { ErrorCode } from '#/constants';
+import { checkEntryCountFits } from '#/boxes/entry-count';
 
 export class stszBox extends FullBox {
   static override readonly fourcc = 'stsz' as const;
@@ -13,8 +15,24 @@ export class stszBox extends FullBox {
     this.parseFullHeader(stream);
     this.sample_sizes = [];
     if (this.version === 0) {
+      if (this.size - this.hdr_size < 8) {
+        return ErrorCode.ERR_INVALID_DATA;
+      }
       this.sample_size = stream.readUint32();
       this.sample_count = stream.readUint32();
+      if (this.sample_size === 0) {
+        // variable-size mode stores one 4-byte entry per sample; the declaration must fit
+        // the bytes the box actually carries. Constant-size mode stores no per-sample data,
+        // so its count is not bounded by the box size and is reconciled via the track instead.
+        const invalid = checkEntryCountFits(
+          this,
+          stream,
+          this.sample_count,
+          4,
+          'sample-size entries',
+        );
+        if (invalid) return invalid;
+      }
       for (let i = 0; i < this.sample_count; i++) {
         if (this.sample_size === 0) {
           this.sample_sizes.push(stream.readUint32());

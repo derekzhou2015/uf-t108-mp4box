@@ -1,6 +1,7 @@
 import { FullBox } from '#/box';
 import type { MultiBufferStream } from '#/buffer';
 import { MAX_UINT32 } from '#/constants';
+import { checkEntryCountFits } from '#/boxes/entry-count';
 
 interface Reference {
   reference_type: number;
@@ -40,6 +41,8 @@ export class sidxBox extends FullBox {
 
     const count = stream.readUint16();
 
+    const invalid = checkEntryCountFits(this, stream, count, 12, 'segment-index references');
+    if (invalid) return invalid;
     for (let i = 0; i < count; i++) {
       const type = stream.readUint32();
       const subsegment_duration = stream.readUint32();

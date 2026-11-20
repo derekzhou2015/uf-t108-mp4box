@@ -1,6 +1,7 @@
 import { Box, FullBox } from '#/box';
 import type { MultiBufferStream } from '#/buffer';
 import { parseHex16 } from '#/parser';
+import { checkEntryCountFits } from '#/boxes/entry-count';
 
 class UUIDBox extends Box {
   static override readonly fourcc = 'uuid' as const;
@@ -75,11 +76,19 @@ export class piffTfrfBox extends UUIDFullBox {
   fragment_count: number;
   entries: Array<{ absolute_time: number; absolute_duration: number }>;
 
-  parse(stream: MultiBufferStream): void {
+  parse(stream: MultiBufferStream) {
     this.parseFullHeader(stream);
     this.fragment_count = stream.readUint8();
     this.entries = [];
 
+    const invalid = checkEntryCountFits(
+      this,
+      stream,
+      this.fragment_count,
+      this.version === 1 ? 16 : 8,
+      'fragment references',
+    );
+    if (invalid) return;
     for (let i = 0; i < this.fragment_count; i++) {
       let absolute_time: number;
       let absolute_duration: number;
